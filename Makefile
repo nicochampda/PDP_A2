@@ -1,18 +1,6 @@
-CC         =  mpicc
-CCFLAGS    =  -O3 -Wall -g
-LIBS       =  -lmpi -lm
+CC=gcc
+CFLAGS=-Wall -O3
+LIBS=-lm
 
-matmult: matmult.c
-	$(CC) $(CCFLAGS) -o matmult matmult.c $(LIBS)
-
-test: test.c
-	gcc $(CCFLAGS) -o test test.c
-
-integral2d:             prog.c
-	$(CC) $(CCFLAGS) -o prog prog.c $(LIBS)
-
-
-clean:
-	$(RM) prog
-	$(RM) matmult
-	$(RM) prog
+wave: wave.c
+	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
