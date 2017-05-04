@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
   double *u_old;
   double *u_new;
   double begin,end;
-
+  int nprocs, rank, i_global, j_global, i_local, j_local, i_local_min, i_local_max, j_local_min, j_local_max ;
   Nx=128;
   if(argc>1)
     Nx=atoi(argv[1]);
@@ -47,6 +47,56 @@ int main(int argc, char *argv[])
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  printf("Approximation of the solution of the wave equation with MPI\n");
+  printf("Using %d processors. \n",nprocs);
+  printf("Using a total of %d points and time steps \n", Nx);
+  printf("\n");
+
+
+  if(rank = 0){
+
+
+  /*
+   Send all parts of u_old, u and u_new to the right processors     
+ */
+
+
+
+
+
+
+
+  }
+
+
+
+
+  if(rank > 0){
+
+
+  /*
+   each processors receive its right part of u_old, u, u_new from the root processor (plus the halo points already?) and store them in variables called u_old_local, u_local, u_new_local 
+ */
+
+
+  /* 
+   integration of the solution on each processors
+ */
+
+
+
+
+
+  }
+
+
+
+
+
+/********************************************************/
+/*This part below is taken from the serial part wave.c */
+/******************************************************/
 
   for(int i = 1; i < (Ny-1); ++i) {
     for(int j = 1; j < (Nx-1); ++j) {
