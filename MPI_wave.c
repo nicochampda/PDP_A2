@@ -25,6 +25,16 @@ int main(int argc, char *argv[])
   double *u_new;
   double begin,end;
   int nprocs, rank, i_global, j_global, i_local, j_local, i_local_min, i_local_max, j_local_min, j_local_max ;
+
+  
+  int p1,p2 ; // number of x-tiles and y-tiles meaning there are p1*p2 processors
+
+
+  p1=atoi(argv[2]);
+  p2=atoi(argv[3]);
+
+  nprocs=p1*p2;
+ 
   Nx=128;
   if(argc>1)
     Nx=atoi(argv[1]);
