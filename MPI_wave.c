@@ -6,10 +6,12 @@
 #include <math.h>
 #include <float.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #define WRITE_TO_FILE 
 #define VERIFY 
 
+void Prvalues(int length, int heigth,  double matrix[length * heigth]);
 double timer();
 double initialize(double x, double y, double t);
 void save_solution(double *u, int Ny, int Nx, int n);
@@ -22,6 +24,9 @@ int main(int argc, char *argv[])
   double *u;
   double *u_old;
   double *u_new;
+  double *u_old_blocks;
+  double *u_blocks;
+  double *u_new_blocks;
   double begin,end;
   int nprocs, rank, i_global, j_global, i_local, j_local, i_local_min, i_local_max, j_local_min, j_local_max ;
 
@@ -43,11 +48,8 @@ int main(int argc, char *argv[])
   dt=0.50*dx;
   lambda_sq = (dt/dx)*(dt/dx);
 
-
-
-   /* The number of points in each processor is Npx*Npy */
-  int Npx= Nx/p1; 
-  int Npy= Ny/p2;
+  int block_length = Nx/p1; 
+  int block_heigth = Ny/p2;
 
   u = malloc(Nx*Ny*sizeof(double));
   u_old = malloc(Nx*Ny*sizeof(double));
@@ -59,6 +61,9 @@ int main(int argc, char *argv[])
   memset(u_old,0,Nx*Ny*sizeof(double));
   memset(u_new,0,Nx*Ny*sizeof(double));
 
+  MPI_Request request;
+  MPI_Request request1;
+
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -69,38 +74,54 @@ int main(int argc, char *argv[])
   printf("\n");
 
 
+
+
   MPI_Comm old_comm = MPI_COMM_WORLD;
 	int ndims = 2;
 	int dim_size[2];
-	dim_size[0] = p1;
-	dim_size[1] = p2;
+	dim_size[1] = p1;
+	dim_size[0] = p2;
 	int periods[2];
 	periods[0] = 0;
 	periods[1] = 0;
 	int reorder = 0;
 
-	int row_rank, col_rank;
+	int row_rank, col_rank, temp_rank;
 
 	int coords[2];
+    int temp_coords[2];
 
-	MPI_Comm proc_grid, proc_row, proc_col;
+	MPI_Comm grid_comm, row_comm, col_comm;
+        
 
 	// Create cartesian communicator
-	MPI_Cart_create (old_comm , ndims , dim_size, periods, reorder, &proc_grid);
+	MPI_Cart_create (old_comm , ndims , dim_size, periods, reorder, &grid_comm);
 
 	// Set new rank and coordinates
-	MPI_Comm_rank(proc_grid, &rank);
-	MPI_Cart_coords(proc_grid, rank, ndims, coords);
+	MPI_Comm_rank(grid_comm, &rank);
+	MPI_Cart_coords(grid_comm, rank, ndims, coords);
 
-	MPI_Comm_split(proc_grid, coords[0], coords[1], &proc_row);
-	MPI_Comm_rank(proc_row, &row_rank);
+	MPI_Comm_split(grid_comm, coords[0], coords[1], &row_comm);
+	MPI_Comm_rank(row_comm, &col_rank);
 
-	MPI_Comm_split(proc_grid, coords[1], coords[0], &proc_col);
-	MPI_Comm_rank(proc_col, &col_rank);
+	MPI_Comm_split(grid_comm, coords[1], coords[0], &col_comm);
+	MPI_Comm_rank(col_comm, &row_rank);
 
+         /* Define new type to send datas */
+	MPI_Datatype blocktype, blockselect;
 
+	MPI_Type_contiguous(block_length * block_heigth, MPI_DOUBLE, &blocktype);
+    MPI_Type_commit(&blocktype);
+
+	MPI_Type_vector(block_heigth, block_length, Nx, MPI_DOUBLE, &blockselect);
+	MPI_Type_commit(&blockselect);
+
+  printf("coords %i %i rank %i row %i\n ", coords[0], coords[1], rank, row_rank);
+sleep(2);
   if(rank == 0){
 
+
+    /* Initialization p */
     for(int i = 1; i < (Ny-1); ++i) {
        for(int j = 1; j < (Nx-1); ++j) {
             x = j*dx;
@@ -115,41 +136,64 @@ int main(int argc, char *argv[])
     }
 
 
- 
+    for(int i = 0; i < p1; i++) {
+	    for(int j = 0; j < p2; j++) {
+           
+            temp_coords[1] = i ;
+            temp_coords[0] = j ;
 
+            MPI_Cart_rank(grid_comm,temp_coords,&temp_rank);
+
+            MPI_Isend(&u[i*block_heigth*Nx+ j*block_length], 1, blockselect, temp_rank, 0, grid_comm, &request);
+            MPI_Isend(&u_new[i*block_heigth*Nx+ j*block_length], 1, blockselect, temp_rank, 1, grid_comm, &request1);
+        }
+    } 
 
   /*
    Send all parts of u_old, u and u_new to the right processors     
  */
 
 
-
-
-
-
-
   }
 
+   
 
 
-
-  if(rank > 0){
+  
 
 
   /*
    each processors receive its right part of u_old, u, u_new from the root processor (plus the halo points already?) and store them in variables called u_old_local, u_local, u_new_local 
  */
 
+    
+
+    MPI_Irecv(&u_blocks, 1, blocktype, 0, 0, grid_comm, &request);
+    MPI_Irecv(&u_new_blocks, 1, blocktype, 0, 1, grid_comm, &request1);
 
   /* 
    integration of the solution on each processors
  */
 
 
+   MPI_Wait(&request, MPI_STATUS_IGNORE);
+   MPI_Wait(&request1, MPI_STATUS_IGNORE);
 
+  /* Printing part */
 
+  sleep(rank);
+  Prvalues(block_length, block_heigth, u_blocks);
 
-  }
+  
+ 
+
+ MPI_Type_free(&blockselect);
+ MPI_Type_free(&blocktype);
+
+ MPI_Comm_free(&row_comm);   
+ MPI_Comm_free(&col_comm);
+ MPI_Comm_free(&grid_comm);
+  
 
  MPI_Finalize();
 
@@ -280,4 +324,17 @@ void save_solution(double *u, int Ny, int Nx, int n)
   }
 
   fclose(fp);
+}
+
+
+void Prvalues(int length, int heigth,  double matrix[length * heigth]){   
+    int i, j;
+    printf("\n");
+    for (i = 0; i < length; i++){
+        for (j = 0; j < heigth; j++){
+            printf("%.1f\t", matrix[i*length + j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
 }
