@@ -7,8 +7,8 @@
 #include <float.h>
 #include <sys/time.h>
 
-/* #define WRITE_TO_FILE */
-/* #define VERIFY */
+#define WRITE_TO_FILE 
+#define VERIFY 
 
 double timer();
 double initialize(double x, double y, double t);
@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
 {
   int Nx,Ny,Nt;
   double dt, dx, lambda_sq;
+  double x, y ;
   double *u;
   double *u_old;
   double *u_new;
@@ -150,23 +151,26 @@ int main(int argc, char *argv[])
 
   }
 
+ MPI_Finalize();
+
+ return 0;
 
 
-
+}
 
 /********************************************************/
 /*This part below is taken from the serial part wave.c */
 /******************************************************/
 
-  for(int i = 1; i < (Ny-1); ++i) {
+/*  for(int i = 1; i < (Ny-1); ++i) {
     for(int j = 1; j < (Nx-1); ++j) {
       double x = j*dx;
       double y = i*dx;
 
-      /* u0 */
+      // u0 
       u[i*Nx+j] = initialize(x,y,0);
 
-      /* u1 */
+      // u1 
       u_new[i*Nx+j] = initialize(x,y,dt);
     }
   }
@@ -178,22 +182,21 @@ int main(int argc, char *argv[])
   double max_error=0.0;
 #endif
 
-  /* Integrate */
+  // Integrate 
 
   begin=timer();
   for(int n=2; n<Nt; ++n) {
-    /* Swap ptrs */
+    // Swap ptrs 
     double *tmp = u_old;
     u_old = u;
     u = u_new;
     u_new = tmp;
 
-    /* Apply stencil */
+    // Apply stencil 
     for(int i = 1; i < (Ny-1); ++i) {
       for(int j = 1; j < (Nx-1); ++j) {
 
-        u_new[i*Nx+j] = 2*u[i*Nx+j]-u_old[i*Nx+j]+lambda_sq*
-          (u[(i+1)*Nx+j] + u[(i-1)*Nx+j] + u[i*Nx+j+1] + u[i*Nx+j-1] -4*u[i*Nx+j]);
+        u_new[i*Nx+j] = 2*u[i*Nx+j]-u_old[i*Nx+j]+lambda_sq*(u[(i+1)*Nx+j] + u[(i-1)*Nx+j] + u[i*Nx+j+1] + u[i*Nx+j-1] -4*u[i*Nx+j]);
       }
     }
 
@@ -229,6 +232,7 @@ int main(int argc, char *argv[])
 
   return 0;
 }
+*/
 
 double timer()
 {
