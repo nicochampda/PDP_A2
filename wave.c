@@ -19,6 +19,7 @@ void save_solution(double *u, int Ny, int Nx, int n);
 int main(int argc, char *argv[])
 {
   int Nx,Ny,Nt;
+  int i,j,n;
   double dt, dx, lambda_sq;
   double *u;
   double *u_old;
@@ -44,8 +45,8 @@ int main(int argc, char *argv[])
   memset(u_old,0,Nx*Ny*sizeof(double));
   memset(u_new,0,Nx*Ny*sizeof(double));
 
-  for(int i = 1; i < (Ny-1); ++i) {
-    for(int j = 1; j < (Nx-1); ++j) {
+  for(i = 1; i < (Ny-1); ++i) {
+    for(j = 1; j < (Nx-1); ++j) {
       double x = j*dx;
       double y = i*dx;
 
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
   /* Integrate */
 
   begin=timer();
-  for(int n=2; n<Nt; ++n) {
+  for(n=2; n<Nt; ++n) {
     /* Swap ptrs */
     double *tmp = u_old;
     u_old = u;
@@ -75,8 +76,8 @@ int main(int argc, char *argv[])
     u_new = tmp;
 
     /* Apply stencil */
-    for(int i = 1; i < (Ny-1); ++i) {
-      for(int j = 1; j < (Nx-1); ++j) {
+    for(i = 1; i < (Ny-1); ++i) {
+      for(j = 1; j < (Nx-1); ++j) {
 
         u_new[i*Nx+j] = 2*u[i*Nx+j]-u_old[i*Nx+j]+lambda_sq*
           (u[(i+1)*Nx+j] + u[(i-1)*Nx+j] + u[i*Nx+j+1] + u[i*Nx+j-1] -4*u[i*Nx+j]);
@@ -85,8 +86,8 @@ int main(int argc, char *argv[])
 
 #ifdef VERIFY
     double error=0.0;
-    for(int i = 0; i < Ny; ++i) {
-      for(int j = 0; j < Nx; ++j) {
+    for(i = 0; i < Ny; ++i) {
+      for(j = 0; j < Nx; ++j) {
         double e = fabs(u_new[i*Nx+j]-initialize(j*dx,i*dx,n*dt));
         if(e>error)
           error = e;
@@ -149,14 +150,15 @@ double initialize(double x, double y, double t)
 
 void save_solution(double *u, int Ny, int Nx, int n)
 {
+  int j, k ;
   char fname[50];
   sprintf(fname,"solution-%d.dat",n);
   FILE *fp = fopen(fname,"w");
 
   fprintf(fp,"%d %d\n",Nx,Ny);
 
-  for(int j = 0; j < Ny; ++j) {
-    for(int k = 0; k < Nx; ++k) {
+  for(j = 0; j < Ny; ++j) {
+    for(k = 0; k < Nx; ++k) {
       fprintf(fp,"%e\n",u[j*Nx+k]);
     }
   }

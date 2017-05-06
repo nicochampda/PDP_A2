@@ -1,6 +1,4 @@
-/* -*- c-basic-offset:2; tab-width:2; indent-tabs-mode:nil -*-
- *
- */
+
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +42,12 @@ int main(int argc, char *argv[])
   dt=0.50*dx;
   lambda_sq = (dt/dx)*(dt/dx);
 
+
+
+   /* The number of points in each processor is Npx*Npy */
+  int Npx= Nx/p1; 
+  int Npy= Ny/p2;
+
   u = malloc(Nx*Ny*sizeof(double));
   u_old = malloc(Nx*Ny*sizeof(double));
   u_new = malloc(Nx*Ny*sizeof(double));
@@ -64,7 +68,53 @@ int main(int argc, char *argv[])
   printf("\n");
 
 
-  if(rank = 0){
+  MPI_Comm old_comm = MPI_COMM_WORLD;
+	int ndims = 2;
+	int dim_size[2];
+	dim_size[0] = p1;
+	dim_size[1] = p2;
+	int periods[2];
+	periods[0] = 0;
+	periods[1] = 0;
+	int reorder = 0;
+
+	int row_rank, col_rank;
+
+	int coords[2];
+
+	MPI_Comm proc_grid, proc_row, proc_col;
+
+	// Create cartesian communicator
+	MPI_Cart_create (old_comm , ndims , dim_size, periods, reorder, &proc_grid);
+
+	// Set new rank and coordinates
+	MPI_Comm_rank(proc_grid, &rank);
+	MPI_Cart_coords(proc_grid, rank, ndims, coords);
+
+	MPI_Comm_split(proc_grid, coords[0], coords[1], &proc_row);
+	MPI_Comm_rank(proc_row, &row_rank);
+
+	MPI_Comm_split(proc_grid, coords[1], coords[0], &proc_col);
+	MPI_Comm_rank(proc_col, &col_rank);
+
+
+  if(rank == 0){
+
+    for(int i = 1; i < (Ny-1); ++i) {
+       for(int j = 1; j < (Nx-1); ++j) {
+            x = j*dx;
+            y = i*dx;
+
+          /* u0 */
+            u[i*Nx+j] = initialize(x,y,0);
+
+          /* u1 */
+            u_new[i*Nx+j] = initialize(x,y,dt);
+       }
+    }
+
+
+ 
 
 
   /*
