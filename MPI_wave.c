@@ -194,17 +194,30 @@ int main(int argc, char *argv[]){
         // Exchange ghost values
         // if processor not on the rigth/left --> send column
         if (col_rank =! 0){
-            //send rigth column
+
+            //send left column of the processors to the right to the first column
+                 for(int j = 0; j < p2 ; j++){
+                 MPI_Isend(&u[(block_heigth-2) + j*(block_length-2)*Nx], coltype, temp_rank, 2, grid_comm, &req_u_send_ghostcol1);
+                 }
         }
         if (col_rank =! p1){
-            //send left column
+            //send right column of the processors to the left to the last colum
+                 for(int j = 0; j < p2 ; j++){
+                     MPI_Isend(&u[(p1-1)*(block_heigth-2) + j*(block_length-2)*Nx], coltype, temp_rank, 3, grid_comm, &req_u_send_ghostcol2);
+                 }
         }
         // if processor not on the top/bottom --> send row
         if (row_rank =! 0){
-            //send rigth column
+            //send top row of the processors down to the first row
+                 for(int i = 0; i < p1 ; i++){
+                     MPI_Isend(&u[i*(block_heigth-2) + (block_length-2)*Nx], rowtype, temp_rank, 4, grid_comm, &req_u_send_ghostrow1);
+                 }
         }
         if (row_rank =! p2){
-            //send left column
+            //send bottom row of the processors down to last row
+                 for(int i = 0; i < p1 ; i++){
+                MPI_Isend(&u[i*(block_heigth-2) + (p1-1)*(block_length-2)*Nx], rowtype, temp_rank, 5, grid_comm, &req_u_send_ghostrow2);
+                 }
         }
     }
 
