@@ -1,4 +1,3 @@
-
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,75 +15,77 @@ double timer();
 double initialize(double x, double y, double t);
 void save_solution(double *u, int Ny, int Nx, int n);
 
-int main(int argc, char *argv[])
-{
-  int Nx,Ny,Nt;
-  double dt, dx, lambda_sq;
-  double x, y ;
-  double *u;
-  double *u_old;
-  double *u_new;
-  double *u_old_blocks;
-  double *u_blocks;
-  double *u_new_blocks;
-  double begin,end;
-  int nprocs, rank, i_global, j_global, i_local, j_local, i_local_min, i_local_max, j_local_min, j_local_max ;
+int main(int argc, char *argv[]){
+    int Nx,Ny,Nt;
+    double dt, dx, lambda_sq;
+    double x, y ;
+    double *u;
+    double *u_old;
+    double *u_new;
+    double *u_old_blocks;
+    double *u_blocks;
+    double *u_new_blocks;
+    double begin,end;
+    int nprocs, rank, i_global, j_global, i_local, j_local, i_local_min, i_local_max, j_local_min, j_local_max ;
 
   
-  int p1,p2 ; // number of x-tiles and y-tiles meaning there are p1*p2 processors
+    int p1,p2 ; // number of x-tiles and y-tiles meaning there are p1*p2 processors
 
 
-  p1=atoi(argv[2]);
-  p2=atoi(argv[3]);
+    p1=atoi(argv[2]);
+    p2=atoi(argv[3]);
 
-  nprocs=p1*p2;
+    nprocs=p1*p2;
  
-  Nx=128;
-  if(argc>1)
-    Nx=atoi(argv[1]);
-  Ny=Nx;
-  Nt=Nx;
-  dx=1.0/(Nx-1);
-  dt=0.50*dx;
-  lambda_sq = (dt/dx)*(dt/dx);
+    Nx=128;
+    if(argc>1)
+        Nx=atoi(argv[1]);
+    Ny=Nx;
+    Nt=Nx;
+    dx=1.0/(Nx-1);
+    dt=0.50*dx;
+    lambda_sq = (dt/dx)*(dt/dx);
 
-  int block_length = Nx/p1; 
-  int block_heigth = Ny/p2;
+    int block_length = Nx/p2; 
+    int block_heigth = Ny/p1;
 
-  u = malloc(Nx*Ny*sizeof(double));
-  u_old = malloc(Nx*Ny*sizeof(double));
-  u_new = malloc(Nx*Ny*sizeof(double));
+    printf("len %i hei %i\n", block_length, block_heigth);
+    u = malloc(Nx*Ny*sizeof(double));
+    u_old = malloc(Nx*Ny*sizeof(double));
+    u_new = malloc(Nx*Ny*sizeof(double));
 
-  /* Setup IC */
+    /* Setup IC */
 
-  memset(u,0,Nx*Ny*sizeof(double));
-  memset(u_old,0,Nx*Ny*sizeof(double));
-  memset(u_new,0,Nx*Ny*sizeof(double));
+    memset(u,0,Nx*Ny*sizeof(double));
+    memset(u_old,0,Nx*Ny*sizeof(double));
+    memset(u_new,0,Nx*Ny*sizeof(double));
 
-  MPI_Request request;
-  MPI_Request request1;
+    MPI_Request req_u_send;
+    MPI_Request req_u_recv;
+    MPI_Request req_u_new_send;
+    MPI_Request req_u_new_recv;
 
-  MPI_Init(&argc,&argv);
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    MPI_Init(&argc,&argv);
+    MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  printf("Approximation of the solution of the wave equation with MPI\n");
-  printf("Using %d processors. \n",nprocs);
-  printf("Using a total of %d points and time steps \n", Nx);
-  printf("\n");
-
-
+    printf("Approximation of the solution of the wave equation with MPI\n");
+    printf("Using %d processors. \n",nprocs);
+    printf("Using a total of %d points and time steps \n", Nx);
+    printf("\n");
 
 
-  MPI_Comm old_comm = MPI_COMM_WORLD;
+
+
+    MPI_Comm old_comm = MPI_COMM_WORLD;
 	int ndims = 2;
 	int dim_size[2];
-	dim_size[1] = p1;
-	dim_size[0] = p2;
+	dim_size[0] = p1;
+	dim_size[1] = p2;
 	int periods[2];
 	periods[0] = 0;
 	periods[1] = 0;
-	int reorder = 0;
+	int reorder = 1;
 
 	int row_rank, col_rank, temp_rank;
 
@@ -116,45 +117,43 @@ int main(int argc, char *argv[])
 	MPI_Type_vector(block_heigth, block_length, Nx, MPI_DOUBLE, &blockselect);
 	MPI_Type_commit(&blockselect);
 
-  printf("coords %i %i rank %i row %i\n ", coords[0], coords[1], rank, row_rank);
-sleep(2);
-  if(rank == 0){
+    printf("coords %i %i rank %i row %i\n ", coords[0], coords[1], rank, row_rank);
+    if(rank == 0){
 
 
-    /* Initialization p */
-    for(int i = 1; i < (Ny-1); ++i) {
-       for(int j = 1; j < (Nx-1); ++j) {
-            x = j*dx;
-            y = i*dx;
+        /* Initialization p */
+        for(int i = 1; i < (Ny-1); ++i) {
+            for(int j = 1; j < (Nx-1); ++j) {
+                x = j*dx;
+                y = i*dx;
 
-          /* u0 */
-            u[i*Nx+j] = initialize(x,y,0);
+                /* u0 */
+                u[i*Nx+j] = i+ 0.1*j; //initialize(x,y,0);
 
-          /* u1 */
-            u_new[i*Nx+j] = initialize(x,y,dt);
-       }
-    }
-
-
-    for(int i = 0; i < p1; i++) {
-	    for(int j = 0; j < p2; j++) {
-           
-            temp_coords[1] = i ;
-            temp_coords[0] = j ;
-
-            MPI_Cart_rank(grid_comm,temp_coords,&temp_rank);
-
-            MPI_Isend(&u[i*block_heigth*Nx+ j*block_length], 1, blockselect, temp_rank, 0, grid_comm, &request);
-            MPI_Isend(&u_new[i*block_heigth*Nx+ j*block_length], 1, blockselect, temp_rank, 1, grid_comm, &request1);
+                /* u1 */
+                u_new[i*Nx+j] = i+ 0.1*j; //initialize(x,y,dt);
+           }
         }
-    } 
-
-  /*
-   Send all parts of u_old, u and u_new to the right processors     
- */
 
 
-  }
+        Prvalues(Nx, Ny, u);
+        /* Send all parts of u_old, u and u_new to the right processors */
+        for(int i = 0; i < p1; i++) {
+            for(int j = 0; j < p2; j++) {
+           
+                temp_coords[0] = i ;
+                temp_coords[1] = j ;
+
+                MPI_Cart_rank(grid_comm,temp_coords,&temp_rank);
+                printf("send to %i %i %i\n", i, j, temp_rank);
+                MPI_Isend(&u[i*block_heigth*Nx + j*block_length], 1, blockselect, temp_rank, 0, grid_comm, &req_u_send);
+                MPI_Isend(&u_new[i*block_heigth*Nx + j*block_length], 1, blockselect, temp_rank, 1, grid_comm, &req_u_new_send);
+            }
+        } 
+
+
+
+    }
 
    
 
@@ -168,21 +167,28 @@ sleep(2);
 
     
 
-    MPI_Irecv(&u_blocks, 1, blocktype, 0, 0, grid_comm, &request);
-    MPI_Irecv(&u_new_blocks, 1, blocktype, 0, 1, grid_comm, &request1);
+    u_blocks = (double *)malloc(block_length * block_heigth * sizeof(double));
+    u_new_blocks = (double *)malloc(block_length * block_heigth * sizeof(double));
+
+    MPI_Irecv(u_blocks, 1, blocktype, 0, 0, grid_comm, &req_u_recv);
+    MPI_Irecv(u_new_blocks, 1, blocktype, 0, 1, grid_comm, &req_u_new_recv);
 
   /* 
    integration of the solution on each processors
  */
 
 
-   MPI_Wait(&request, MPI_STATUS_IGNORE);
-   MPI_Wait(&request1, MPI_STATUS_IGNORE);
-
+   MPI_Wait(&req_u_recv, MPI_STATUS_IGNORE);
+   MPI_Wait(&req_u_new_recv, MPI_STATUS_IGNORE);
+    if (rank == 0){
+        MPI_Wait(&req_u_send, MPI_STATUS_IGNORE);
+    }
   /* Printing part */
 
   sleep(rank);
+  printf("coords %i %i\n", row_rank, col_rank);
   Prvalues(block_length, block_heigth, u_blocks);
+  Prvalues(block_length, block_heigth, u_new_blocks);
 
   
  
@@ -330,8 +336,8 @@ void save_solution(double *u, int Ny, int Nx, int n)
 void Prvalues(int length, int heigth,  double matrix[length * heigth]){   
     int i, j;
     printf("\n");
-    for (i = 0; i < length; i++){
-        for (j = 0; j < heigth; j++){
+    for (i = 0; i < heigth; i++){
+        for (j = 0; j < length; j++){
             printf("%.1f\t", matrix[i*length + j]);
         }
         printf("\n");
