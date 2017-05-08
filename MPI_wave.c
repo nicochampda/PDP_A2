@@ -99,14 +99,21 @@ int main(int argc, char *argv[]){
 	MPI_Comm_split(grid_comm, coords[1], coords[0], &col_comm);
 	MPI_Comm_rank(col_comm, &row_rank);
 
-         /* Define new type to send datas */
-	MPI_Datatype blocktype, blockselect;
+    /* Define new type to send datas */
+	MPI_Datatype blocktype, blockselect, rowtype, coltype;
 
 	MPI_Type_contiguous(block_length * block_heigth, MPI_DOUBLE, &blocktype);
     MPI_Type_commit(&blocktype);
 
 	MPI_Type_vector(block_length, block_heigth, Nx, MPI_DOUBLE, &blockselect);
 	MPI_Type_commit(&blockselect);
+
+    MPI_Type_contiguous(block_heigth, MPI_DOUBLE, &rowtype);
+    MPI_Type_commit(&rowtype);
+
+	MPI_Type_vector(block_length, 1, block_heigth, MPI_DOUBLE, &coltype);
+	MPI_Type_commit(&coltype);
+
 
     printf("coords %i %i rank %i row %i\n ", coords[0], coords[1], rank, row_rank);
     if(rank == 0){
@@ -158,6 +165,8 @@ int main(int argc, char *argv[]){
     u_new_blocks = (double *)malloc(block_length * block_heigth * sizeof(double));
     u_old_blocks = (double *)malloc(block_length * block_heigth * sizeof(double));
 
+    memset(u_old_blocks,1,block_length*block_heigth*sizeof(double));
+
     MPI_Irecv(u_blocks, 1, blocktype, 0, 0, grid_comm, &req_u_recv);
     MPI_Irecv(u_new_blocks, 1, blocktype, 0, 1, grid_comm, &req_u_new_recv);
 
@@ -177,7 +186,7 @@ int main(int argc, char *argv[]){
 
     /* integration of the solution on each processors */
 
-    for(int n=2; n<Nt; ++n) {
+    for(int n=2; n<Nt; n++) {
         // Swap ptrs 
         double *tmp_blocks = u_old_blocks;
         u_old_blocks = u_blocks;
@@ -185,9 +194,9 @@ int main(int argc, char *argv[]){
         u_new_blocks = tmp_blocks;
 
         // Apply stencil 
-        for(int i = 1; i < (block_heigth-1); ++i) {
-            for(int j = 1; j < (block_length-1); ++j) {
-                u_new_blocks[i*Nx+j] = 2*u_blocks[i*Nx+j] - u_old_blocks[i*Nx+j] + lambda_sq*(u_blocks[(i+1)*Nx+j] + u_blocks[(i-1)*Nx+j] + u_blocks[i*Nx+j+1] + u_blocks[i*Nx+j-1] - 4*u_blocks[i*Nx+j]);
+        for(int i = 1; i < (block_length-1); i++) {
+            for(int j = 1; j < (block_heigth-1); j++) {
+                u_new_blocks[i*block_heigth+j] = 2*u_blocks[i*block_heigth+j] - u_old_blocks[i*block_heigth+j] + lambda_sq*(u_blocks[(i+1)*block_heigth+j] + u_blocks[(i-1)*block_heigth+j] + u_blocks[i*block_heigth+j+1] + u_blocks[i*block_heigth+j-1] - 4*u_blocks[i*block_heigth+j]);
         
             }
         }
@@ -214,6 +223,8 @@ int main(int argc, char *argv[]){
 
     MPI_Type_free(&blockselect);
     MPI_Type_free(&blocktype);
+    MPI_Type_free(&rowtype);
+    MPI_Type_free(&coltype);
 
     MPI_Comm_free(&row_comm);   
     MPI_Comm_free(&col_comm);
