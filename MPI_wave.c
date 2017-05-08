@@ -178,7 +178,6 @@ int main(int argc, char *argv[]){
     /* integration of the solution on each processors */
 
     for(int n=2; n<Nt; ++n) {
-        // Exchange ghost values
         // Swap ptrs 
         double *tmp_blocks = u_old_blocks;
         u_old_blocks = u_blocks;
@@ -188,8 +187,24 @@ int main(int argc, char *argv[]){
         // Apply stencil 
         for(int i = 1; i < (block_heigth-1); ++i) {
             for(int j = 1; j < (block_length-1); ++j) {
-                //u_new_blocks[i*Nx+j] = 2*u_blocks[i*Nx+j] - u_old_blocks[i*Nx+j] + lambda_sq*(u_blocks[(i+1)*Nx+j] + u_blocks[(i-1)*Nx+j] + u_blocks[i*Nx+j+1] + u_blocks[i*Nx+j-1] - 4*u_blocks[i*Nx+j]);
+                u_new_blocks[i*Nx+j] = 2*u_blocks[i*Nx+j] - u_old_blocks[i*Nx+j] + lambda_sq*(u_blocks[(i+1)*Nx+j] + u_blocks[(i-1)*Nx+j] + u_blocks[i*Nx+j+1] + u_blocks[i*Nx+j-1] - 4*u_blocks[i*Nx+j]);
+        
             }
+        }
+        // Exchange ghost values
+        // if processor not on the rigth/left --> send column
+        if (col_rank =! 0){
+            //send rigth column
+        }
+        if (col_rank =! p1){
+            //send left column
+        }
+        // if processor not on the top/bottom --> send row
+        if (row_rank =! 0){
+            //send rigth column
+        }
+        if (row_rank =! p2){
+            //send left column
         }
     }
 
