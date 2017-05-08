@@ -114,7 +114,7 @@ int main(int argc, char *argv[]){
 	MPI_Type_contiguous(block_length * block_heigth, MPI_DOUBLE, &blocktype);
     MPI_Type_commit(&blocktype);
 
-	MPI_Type_vector(block_heigth, block_length, Nx, MPI_DOUBLE, &blockselect);
+	MPI_Type_vector(block_length, block_heigth, Nx, MPI_DOUBLE, &blockselect);
 	MPI_Type_commit(&blockselect);
 
     printf("coords %i %i rank %i row %i\n ", coords[0], coords[1], rank, row_rank);
@@ -146,8 +146,8 @@ int main(int argc, char *argv[]){
 
                 MPI_Cart_rank(grid_comm,temp_coords,&temp_rank);
                 printf("send to %i %i %i\n", i, j, temp_rank);
-                MPI_Isend(&u[i*block_heigth*Nx + j*block_length], 1, blockselect, temp_rank, 0, grid_comm, &req_u_send);
-                MPI_Isend(&u_new[i*block_heigth*Nx + j*block_length], 1, blockselect, temp_rank, 1, grid_comm, &req_u_new_send);
+                MPI_Isend(&u[i*block_heigth + j*block_length*Ny], 1, blockselect, temp_rank, 0, grid_comm, &req_u_send);
+                MPI_Isend(&u_new[i*block_heigth + j*block_length*Ny], 1, blockselect, temp_rank, 1, grid_comm, &req_u_new_send);
             }
         } 
     }
@@ -168,8 +168,8 @@ int main(int argc, char *argv[]){
     /* Printing part */
     sleep(rank);
     printf("coords %i %i\n", row_rank, col_rank);
-    Prvalues(block_length, block_heigth, u_blocks);
-    Prvalues(block_length, block_heigth, u_new_blocks);
+    Prvalues(block_heigth, block_length, u_blocks);
+    Prvalues(block_heigth, block_length, u_new_blocks);
   
     /*
     each processors receive its right part of u_old, u, u_new from the root processor (plus the halo points already?) and store them in variables called u_old_local, u_local, u_new_local 
