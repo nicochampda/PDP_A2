@@ -150,62 +150,64 @@ int main(int argc, char *argv[]){
                 MPI_Isend(&u_new[i*block_heigth*Nx + j*block_length], 1, blockselect, temp_rank, 1, grid_comm, &req_u_new_send);
             }
         } 
-
-
-
     }
 
-   
 
-
-  
-
-
-  /*
-   each processors receive its right part of u_old, u, u_new from the root processor (plus the halo points already?) and store them in variables called u_old_local, u_local, u_new_local 
- */
-
-    
-
+    /* Each processor receive block of u0 and u1 as initialization */
     u_blocks = (double *)malloc(block_length * block_heigth * sizeof(double));
     u_new_blocks = (double *)malloc(block_length * block_heigth * sizeof(double));
+    u_old_blocks = (double *)malloc(block_length * block_heigth * sizeof(double));
 
     MPI_Irecv(u_blocks, 1, blocktype, 0, 0, grid_comm, &req_u_recv);
     MPI_Irecv(u_new_blocks, 1, blocktype, 0, 1, grid_comm, &req_u_new_recv);
 
-  /* 
-   integration of the solution on each processors
- */
+    MPI_Wait(&req_u_recv, MPI_STATUS_IGNORE);
+    MPI_Wait(&req_u_new_recv, MPI_STATUS_IGNORE);
 
 
-   MPI_Wait(&req_u_recv, MPI_STATUS_IGNORE);
-   MPI_Wait(&req_u_new_recv, MPI_STATUS_IGNORE);
-    if (rank == 0){
-        MPI_Wait(&req_u_send, MPI_STATUS_IGNORE);
+    /* Printing part */
+    sleep(rank);
+    printf("coords %i %i\n", row_rank, col_rank);
+    Prvalues(block_length, block_heigth, u_blocks);
+    Prvalues(block_length, block_heigth, u_new_blocks);
+  
+    /*
+    each processors receive its right part of u_old, u, u_new from the root processor (plus the halo points already?) and store them in variables called u_old_local, u_local, u_new_local 
+    */
+
+    /* integration of the solution on each processors */
+
+    for(int n=2; n<Nt; ++n) {
+        // Exchange ghost values
+        // Swap ptrs 
+        double *tmp_blocks = u_old_blocks;
+        u_old_blocks = u_blocks;
+        u_blocks = u_new_blocks;
+        u_new_blocks = tmp_blocks;
+
+        // Apply stencil 
+        for(int i = 1; i < (block_heigth-1); ++i) {
+            for(int j = 1; j < (block_length-1); ++j) {
+                //u_new_blocks[i*Nx+j] = 2*u_blocks[i*Nx+j] - u_old_blocks[i*Nx+j] + lambda_sq*(u_blocks[(i+1)*Nx+j] + u_blocks[(i-1)*Nx+j] + u_blocks[i*Nx+j+1] + u_blocks[i*Nx+j-1] - 4*u_blocks[i*Nx+j]);
+            }
+        }
     }
-  /* Printing part */
 
-  sleep(rank);
-  printf("coords %i %i\n", row_rank, col_rank);
-  Prvalues(block_length, block_heigth, u_blocks);
-  Prvalues(block_length, block_heigth, u_new_blocks);
 
   
  
 
- MPI_Type_free(&blockselect);
- MPI_Type_free(&blocktype);
+    MPI_Type_free(&blockselect);
+    MPI_Type_free(&blocktype);
 
- MPI_Comm_free(&row_comm);   
- MPI_Comm_free(&col_comm);
- MPI_Comm_free(&grid_comm);
+    MPI_Comm_free(&row_comm);   
+    MPI_Comm_free(&col_comm);
+    MPI_Comm_free(&grid_comm);
   
 
- MPI_Finalize();
+    MPI_Finalize();
 
- return 0;
-
-
+    return 0;
 }
 
 /********************************************************/
@@ -285,7 +287,7 @@ int main(int argc, char *argv[]){
 */
 
 double timer()
-{
+{ 
   struct timeval tv;
   gettimeofday(&tv, NULL);
   double seconds = tv.tv_sec + (double)tv.tv_usec / 1000000;
