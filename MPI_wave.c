@@ -46,19 +46,10 @@ int main(int argc, char *argv[]){
     dt=0.50*dx;
     lambda_sq = (dt/dx)*(dt/dx);
 
-    int block_length = Nx/p2; 
-    int block_heigth = Ny/p1;
+    int block_length = (Ny - 2)/p2 + 2; 
+    int block_heigth = (Nx- 2)/p1 + 2;
 
     printf("len %i hei %i\n", block_length, block_heigth);
-    u = malloc(Nx*Ny*sizeof(double));
-    u_old = malloc(Nx*Ny*sizeof(double));
-    u_new = malloc(Nx*Ny*sizeof(double));
-
-    /* Setup IC */
-
-    memset(u,0,Nx*Ny*sizeof(double));
-    memset(u_old,0,Nx*Ny*sizeof(double));
-    memset(u_new,0,Nx*Ny*sizeof(double));
 
     MPI_Request req_u_send;
     MPI_Request req_u_recv;
@@ -119,6 +110,15 @@ int main(int argc, char *argv[]){
 
     printf("coords %i %i rank %i row %i\n ", coords[0], coords[1], rank, row_rank);
     if(rank == 0){
+        u = malloc(Nx*Ny*sizeof(double));
+        u_old = malloc(Nx*Ny*sizeof(double));
+        u_new = malloc(Nx*Ny*sizeof(double));
+
+        /* Setup IC */
+
+        memset(u,0,Nx*Ny*sizeof(double));
+        memset(u_old,0,Nx*Ny*sizeof(double));
+        memset(u_new,0,Nx*Ny*sizeof(double));
 
 
         /* Initialization p */
@@ -146,8 +146,8 @@ int main(int argc, char *argv[]){
 
                 MPI_Cart_rank(grid_comm,temp_coords,&temp_rank);
                 printf("send to %i %i %i\n", i, j, temp_rank);
-                MPI_Isend(&u[i*block_heigth + j*block_length*Ny], 1, blockselect, temp_rank, 0, grid_comm, &req_u_send);
-                MPI_Isend(&u_new[i*block_heigth + j*block_length*Ny], 1, blockselect, temp_rank, 1, grid_comm, &req_u_new_send);
+                MPI_Isend(&u[i*(block_heigth-2) + j*(block_length-2)*Nx], 1, blockselect, temp_rank, 0, grid_comm, &req_u_send);
+                MPI_Isend(&u_new[i*(block_heigth-2) + j*(block_length-2)*Nx], 1, blockselect, temp_rank, 1, grid_comm, &req_u_new_send);
             }
         } 
     }
@@ -169,7 +169,7 @@ int main(int argc, char *argv[]){
     sleep(rank);
     printf("coords %i %i\n", row_rank, col_rank);
     Prvalues(block_heigth, block_length, u_blocks);
-    Prvalues(block_heigth, block_length, u_new_blocks);
+//    Prvalues(block_heigth, block_length, u_new_blocks);
   
     /*
     each processors receive its right part of u_old, u, u_new from the root processor (plus the halo points already?) and store them in variables called u_old_local, u_local, u_new_local 
