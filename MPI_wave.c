@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #define WRITE_TO_FILE 
-#define VERIFY 
+#define VERIFY 1 
 
 void Prvalues(int length, int heigth,  double matrix[length * heigth]);
 double timer();
@@ -18,7 +18,7 @@ void save_solution(double *u, int Ny, int Nx, int n);
 int main(int argc, char *argv[]){
     int Nx,Ny,Nt;
     double dt, dx, lambda_sq;
-    double x, y ;
+    double x, y;
     double *u;
     double *u_old;
     double *u_new;
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]){
     double *u_blocks;
     double *u_new_blocks;
     double begin,end;
-    int nprocs, rank, i_global, j_global, i_local, j_local, i_local_min, i_local_max, j_local_min, j_local_max ;
+    int nprocs, rank;
 
   
     int p1,p2 ; // number of x-tiles and y-tiles meaning there are p1*p2 processors
@@ -55,10 +55,8 @@ int main(int argc, char *argv[]){
     MPI_Request req_u_recv;
     MPI_Request req_u_new_send;
     MPI_Request req_u_new_recv;
-    MPI_Request req_u_send_ghostcol1;
-    MPI_Request req_u_send_ghostcol2;
-    MPI_Request req_u_send_ghostrow1;
-    MPI_Request req_u_send_ghostrow2;
+
+    MPI_Request req_shift_left[2];
 
 
 
@@ -143,10 +141,10 @@ int main(int argc, char *argv[]){
                 y = i*dx;
 
                 /* u0 */
-                u[i*Nx+j] = i+ 0.1*j; //initialize(x,y,0);
+                u[i*Nx+j] = initialize(x,y,0);
 
                 /* u1 */
-                u_new[i*Nx+j] = i+ 0.1*j; //initialize(x,y,dt);
+                u_new[i*Nx+j] = initialize(x,y,dt);
            }
         }
 
@@ -185,9 +183,8 @@ int main(int argc, char *argv[]){
 
 
     /* Printing part */
-    sleep(rank);
     printf("coords %i %i\n", row_rank, col_rank);
-    Prvalues(block_heigth, block_length, u_blocks);
+//    Prvalues(block_heigth, block_length, u_blocks);
 //    Prvalues(block_heigth, block_length, u_new_blocks);
   
     /*
@@ -210,38 +207,49 @@ int main(int argc, char *argv[]){
         
             }
         }
-        // Exchange ghost values
-        // if processor not on the rigth/left --> send column
-        if(col_rank =! 0){
+    
+        //Prvalues(block_heigth, block_length, u_new_blocks);
+        
+        // exchange ghost values
 
-            //send left column of the processors to the right to the first column
-                 for(int j = 0; j < p2 ; j++){
-                 MPI_Isend(&u[(block_heigth-2) + j*(block_length-2)*Nx], coltype, temp_rank, 2, grid_comm, &req_u_send_ghostcol1);
-                 }
-        }
-        if(col_rank =! p1){
-            //send right column of the processors to the left to the last colum
-                 for(int j = 0; j < p2 ; j++){
-                     MPI_Isend(&u[(p1-1)*(block_heigth-2) + j*(block_length-2)*Nx], coltype, temp_rank, 3, grid_comm, &req_u_send_ghostcol2);
-                 }
-        }
-        // if processor not on the top/bottom --> send row
-        if(row_rank =! 0){
-            //send top row of the processors down to the first row
-                 for(int i = 0; i < p1 ; i++){
-                     MPI_Isend(&u[i*(block_heigth-2) + (block_length-2)*Nx], rowtype, temp_rank, 4, grid_comm, &req_u_send_ghostrow1);
-                 }
-        }
-        if(row_rank =! p2){
-            //send bottom row of the processors down to last row
-                 for(int i = 0; i < p1 ; i++){
-                MPI_Isend(&u[i*(block_heigth-2) + (p1-1)*(block_length-2)*Nx], rowtype, temp_rank, 5, grid_comm, &req_u_send_ghostrow2);
-                 }
-        }
+        int source, dest;
+        //sending left column
+        MPI_Cart_shift(grid_comm, 0, 1, &source, &dest);
+        MPI_Isend(&u_new_blocks[1], 1, coltype, source, 11, grid_comm, &req_shift_left[0]);
+        MPI_Irecv(&u_new_blocks[block_heigth-1], 1, coltype, dest, 11, grid_comm, &req_shift_left[1]);
+        MPI_Waitall(2, req_shift_left, MPI_STATUS_IGNORE);
+
+        //sending right column
+        MPI_Cart_shift(grid_comm, 0, -1, &source, &dest);
+        MPI_Isend(&u_new_blocks[block_heigth-2], 1, coltype, source, 22, grid_comm, &req_shift_left[0]);
+        MPI_Irecv(&u_new_blocks[0], 1, coltype, dest, 22, grid_comm, &req_shift_left[1]);
+        MPI_Waitall(2, req_shift_left, MPI_STATUS_IGNORE);
+
+        //sending bottom row
+        MPI_Cart_shift(grid_comm, 1, -1, &source, &dest);
+        MPI_Isend(&u_new_blocks[(block_length - 2)*block_heigth], 1, rowtype, source, 33, grid_comm, &req_shift_left[0]);
+        MPI_Irecv(&u_new_blocks[0], 1, rowtype, dest, 33, grid_comm, &req_shift_left[1]);
+        MPI_Waitall(2, req_shift_left, MPI_STATUS_IGNORE);
+
+        //sending top row
+        MPI_Cart_shift(grid_comm, 1, 1, &source, &dest);
+        MPI_Isend(&u_new_blocks[block_heigth], 1, rowtype, source, 44, grid_comm, &req_shift_left[0]);
+        MPI_Irecv(&u_new_blocks[(block_length-1)*block_heigth], 1, rowtype, dest, 44, grid_comm, &req_shift_left[1]);
+        MPI_Waitall(2, req_shift_left, MPI_STATUS_IGNORE);
+
+ //       sleep(rank + 7);
+ //       printf("coords %i %i\n", row_rank, col_rank);
+ //       Prvalues(block_heigth, block_length, u_new_blocks);
+
+
+
     }
 
 
   
+        sleep(1+rank);
+        printf("coords %i %i\n", row_rank, col_rank);
+        Prvalues(block_heigth, block_length, u_new_blocks);
  
 
     MPI_Type_free(&blockselect);
@@ -389,7 +397,7 @@ void Prvalues(int length, int heigth,  double matrix[length * heigth]){
     printf("\n");
     for (i = 0; i < heigth; i++){
         for (j = 0; j < length; j++){
-            printf("%.1f\t", matrix[i*length + j]);
+            printf("%.5f\t", matrix[i*length + j]);
         }
         printf("\n");
     }
