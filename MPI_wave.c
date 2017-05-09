@@ -66,12 +66,14 @@ int main(int argc, char *argv[]){
     MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
+
+    if(rank == 0){
     printf("Approximation of the solution of the wave equation with MPI\n");
     printf("Using %d processors. \n",nprocs);
     printf("Using a total of %d points and time steps \n", Nx);
     printf("\n");
 
-
+    }
 
 
     MPI_Comm old_comm = MPI_COMM_WORLD;
@@ -87,7 +89,7 @@ int main(int argc, char *argv[]){
 	int row_rank, col_rank, temp_rank;
 
 	int coords[2];
-    int temp_coords[2];
+        int temp_coords[2];
 
 	MPI_Comm grid_comm, row_comm, col_comm;
         
@@ -159,8 +161,10 @@ int main(int argc, char *argv[]){
 
                 MPI_Cart_rank(grid_comm,temp_coords,&temp_rank);
                 printf("send to %i %i %i\n", i, j, temp_rank);
+
                 MPI_Isend(&u[i*(block_heigth-2) + j*(block_length-2)*Nx], 1, blockselect, temp_rank, 0, grid_comm, &req_u_send);
                 MPI_Isend(&u_new[i*(block_heigth-2) + j*(block_length-2)*Nx], 1, blockselect, temp_rank, 1, grid_comm, &req_u_new_send);
+
             }
         } 
     }

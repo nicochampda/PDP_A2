@@ -3,3 +3,5 @@ matmult
 core.*
 test
 MPI_wave
+vgcore.*
+wave
