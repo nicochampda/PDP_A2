@@ -29,17 +29,18 @@ int main(int argc, char *argv[]){
     int nprocs, rank;
 
   
-    int p1,p2 ; // number of x-tiles and y-tiles meaning there are p1*p2 processors
+    int p1 = 0, p2 = 0; // number of x-tiles and y-tiles meaning there are p1*p2 processors
 
+    if(argc < 4){
+        printf("usage : mpirun -np p1*p2 ./MPI_wave N p1 p2\n");
+        return -1;
+    }
 
+    Nx=128;
+    Nx=atoi(argv[1]);
     p1=atoi(argv[2]);
     p2=atoi(argv[3]);
 
-    nprocs=p1*p2;
- 
-    Nx=128;
-    if(argc>1)
-        Nx=atoi(argv[1]);
     Ny=Nx;
     Nt=Nx;
     dx=1.0/(Nx-1);
@@ -66,10 +67,15 @@ int main(int argc, char *argv[]){
 
 
     if(rank == 0){
-    printf("Approximation of the solution of the wave equation with MPI\n");
-    printf("Using %d processors. \n",nprocs);
-    printf("Using a total of %d points and time steps \n", Nx);
-    printf("\n");
+        if(p1*p2 != nprocs){
+            printf("the number of procs use must be equal to p1 * p2 \n");
+            return -1;
+        }
+
+        printf("Approximation of the solution of the wave equation with MPI\n");
+        printf("Using %d processors. \n",nprocs);
+        printf("Using a total of %d points and time steps \n", Nx);
+        printf("\n");
 
     }
 
