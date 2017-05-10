@@ -11,4 +11,4 @@ wave: wave.c
 clean:
 	$(RM) MPI_wave
 	$(RM) wave
-
+	$(RM) solution-*

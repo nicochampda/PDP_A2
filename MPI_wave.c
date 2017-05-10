@@ -50,6 +50,19 @@ int main(int argc, char *argv[]){
     int block_length = (Ny - 2)/p2 + 2; 
     int block_heigth = (Nx- 2)/p1 + 2;
 
+    int mod_length = (Ny - 2)%p2; 
+    int mod_heigth = (Nx - 2)%p1; 
+    if(mod_length != 0){
+        block_length += 1;
+        mod_length = p2 - mod_length;
+    }
+
+    if(mod_heigth != 0){
+        block_heigth += 1;
+        mod_heigth = p1 - mod_heigth;
+    }
+
+
     printf("len %i hei %i\n", block_length, block_heigth);
 
     MPI_Request req_u_send;
@@ -93,7 +106,7 @@ int main(int argc, char *argv[]){
 	int row_rank, col_rank, temp_rank;
 
 	int coords[2];
-        int temp_coords[2];
+    int temp_coords[2];
 
 	MPI_Comm grid_comm, row_comm, col_comm;
         
@@ -126,6 +139,13 @@ int main(int argc, char *argv[]){
 	MPI_Type_vector(block_length, 1, block_heigth, MPI_DOUBLE, &coltype);
 	MPI_Type_commit(&coltype);
 
+    if(row_rank != p1-1 ){
+        mod_heigth = 0;
+    }
+
+    if(col_rank != p2-1 ){
+        mod_length = 0;
+    }
 
     printf("coords %i %i rank %i row %i\n ", coords[0], coords[1], rank, row_rank);
     if(rank == 0){
@@ -206,13 +226,14 @@ int main(int argc, char *argv[]){
         u_blocks = u_new_blocks;
         u_new_blocks = tmp_blocks;
 
-        // Apply stencil 
-        for(int i = 1; i < (block_length-1); i++) {
-            for(int j = 1; j < (block_heigth-1); j++) {
+        // Apply stencil
+        for(int i = 1; i < (block_length-1-mod_length); i++) {
+            for(int j = 1; j < (block_heigth-1-mod_heigth); j++) {
                 u_new_blocks[i*block_heigth+j] = 2*u_blocks[i*block_heigth+j] - u_old_blocks[i*block_heigth+j] + lambda_sq*(u_blocks[(i+1)*block_heigth+j] + u_blocks[(i-1)*block_heigth+j] + u_blocks[i*block_heigth+j+1] + u_blocks[i*block_heigth+j-1] - 4*u_blocks[i*block_heigth+j]);
         
             }
         }
+
     
         //Prvalues(block_heigth, block_length, u_new_blocks);
         
@@ -403,7 +424,7 @@ void Prvalues(int length, int heigth,  double matrix[length * heigth]){
     printf("\n");
     for (i = 0; i < heigth; i++){
         for (j = 0; j < length; j++){
-            printf("%.5f\t", matrix[i*length + j]);
+            printf("%.3f\t", matrix[i*length + j]);
         }
         printf("\n");
     }
