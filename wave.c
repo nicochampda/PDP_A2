@@ -9,8 +9,8 @@
 #include <float.h>
 #include <sys/time.h>
 
-#define WRITE_TO_FILE 1
-#define VERIFY 1
+//#define WRITE_TO_FILE
+//#define VERIFY
 
 double timer();
 double initialize(double x, double y, double t);

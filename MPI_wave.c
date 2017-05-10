@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define VERIFY 
+//#define VERIFY  
 
 void Prvalues(int length, int heigth,  double matrix[length * heigth]);
 double timer();
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]){
     MPI_Request req_u_new_send;
     MPI_Request req_u_new_recv;
 
-    MPI_Request req_shift[2];
+    MPI_Request req_shift[8];
 
 
 
@@ -249,25 +249,25 @@ int main(int argc, char *argv[]){
         MPI_Cart_shift(grid_comm, 0, 1, &source, &dest);
         MPI_Isend(&u_new_blocks[1], 1, coltype, source, 11, grid_comm, &req_shift[0]);
         MPI_Irecv(&u_new_blocks[block_length-1], 1, coltype, dest, 11, grid_comm, &req_shift[1]);
-        MPI_Waitall(2, req_shift, MPI_STATUS_IGNORE);
+      //  MPI_Waitall(2, req_shift, MPI_STATUS_IGNORE);
 
         //sending right column
         MPI_Cart_shift(grid_comm, 0, -1, &source, &dest);
-        MPI_Isend(&u_new_blocks[block_length-2], 1, coltype, source, 22, grid_comm, &req_shift[0]);
-        MPI_Irecv(&u_new_blocks[0], 1, coltype, dest, 22, grid_comm, &req_shift[1]);
-        MPI_Waitall(2, req_shift, MPI_STATUS_IGNORE);
+        MPI_Isend(&u_new_blocks[block_length-2], 1, coltype, source, 22, grid_comm, &req_shift[2]);
+        MPI_Irecv(&u_new_blocks[0], 1, coltype, dest, 22, grid_comm, &req_shift[3]);
+      //  MPI_Waitall(2, req_shift, MPI_STATUS_IGNORE);
 
         //sending bottom row
         MPI_Cart_shift(grid_comm, 1, -1, &source, &dest);
-        MPI_Isend(&u_new_blocks[(block_heigth - 2)*block_length], 1, rowtype, source, 33, grid_comm, &req_shift[0]);
-        MPI_Irecv(&u_new_blocks[0], 1, rowtype, dest, 33, grid_comm, &req_shift[1]);
-        MPI_Waitall(2, req_shift, MPI_STATUS_IGNORE);
+        MPI_Isend(&u_new_blocks[(block_heigth - 2)*block_length], 1, rowtype, source, 33, grid_comm, &req_shift[4]);
+        MPI_Irecv(&u_new_blocks[0], 1, rowtype, dest, 33, grid_comm, &req_shift[5]);
+      //  MPI_Waitall(2, req_shift, MPI_STATUS_IGNORE);
 
         //sending top row
         MPI_Cart_shift(grid_comm, 1, 1, &source, &dest);
-        MPI_Isend(&u_new_blocks[block_length], 1, rowtype, source, 44, grid_comm, &req_shift[0]);
-        MPI_Irecv(&u_new_blocks[(block_heigth-1)*block_length], 1, rowtype, dest, 44, grid_comm, &req_shift[1]);
-        MPI_Waitall(2, req_shift, MPI_STATUS_IGNORE);
+        MPI_Isend(&u_new_blocks[block_length], 1, rowtype, source, 44, grid_comm, &req_shift[6]);
+        MPI_Irecv(&u_new_blocks[(block_heigth-1)*block_length], 1, rowtype, dest, 44, grid_comm, &req_shift[7]);
+        MPI_Waitall(8, req_shift, MPI_STATUS_IGNORE);
 
     }
     end = MPI_Wtime();
